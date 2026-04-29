@@ -5,361 +5,1714 @@
  * FocusFlow AI - Productivity & Focus Management API for students
  * OpenAPI spec version: 0.1.0
  */
-import * as zod from "zod";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import type {
+  MutationFunction,
+  QueryFunction,
+  QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
+  UseQueryOptions,
+  UseQueryResult,
+} from "@tanstack/react-query";
+
+import type {
+  AchievementsResponse,
+  AiInsights,
+  CreateGoalBody,
+  CreateSessionBody,
+  CreateTaskBody,
+  DailyStat,
+  DashboardSummary,
+  FocusSession,
+  ForecastDay,
+  Goal,
+  HealthStatus,
+  HeatmapCell,
+  ListSessionsParams,
+  ListTasksParams,
+  StreakInfo,
+  SubjectTotal,
+  Task,
+  UpdateGoalBody,
+  UpdateTaskBody,
+  UpdateUserBody,
+  User,
+} from "./api.schemas";
+
+import { customFetch } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
+
+type AwaitedInput<T> = PromiseLike<T> | T;
+
+type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
+
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 /**
  * @summary Health check
  */
-export const HealthCheckResponse = zod.object({
-  status: zod.string(),
-});
+export const getHealthCheckUrl = () => {
+  return `/api/healthz`;
+};
+
+export const healthCheck = async (
+  options?: RequestInit,
+): Promise<HealthStatus> => {
+  return customFetch<HealthStatus>(getHealthCheckUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getHealthCheckQueryKey = () => {
+  return [`/api/healthz`] as const;
+};
+
+export const getHealthCheckQueryOptions = <
+  TData = Awaited<ReturnType<typeof healthCheck>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof healthCheck>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getHealthCheckQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof healthCheck>>> = ({
+    signal,
+  }) => healthCheck({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof healthCheck>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type HealthCheckQueryResult = NonNullable<
+  Awaited<ReturnType<typeof healthCheck>>
+>;
+export type HealthCheckQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Health check
+ */
+
+export function useHealthCheck<
+  TData = Awaited<ReturnType<typeof healthCheck>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof healthCheck>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getHealthCheckQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Get current user profile
  */
-export const GetMeResponse = zod.object({
-  id: zod.number(),
-  name: zod.string(),
-  email: zod.string(),
-  avatarUrl: zod.string().nullish(),
-  role: zod.string().describe("school | college | exam | self"),
-  dailyGoalMinutes: zod.number(),
-  theme: zod.string().describe("light | dark | system"),
-  xp: zod.number(),
-  level: zod.number(),
-  createdAt: zod.coerce.date(),
-});
+export const getGetMeUrl = () => {
+  return `/api/me`;
+};
+
+export const getMe = async (options?: RequestInit): Promise<User> => {
+  return customFetch<User>(getGetMeUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMeQueryKey = () => {
+  return [`/api/me`] as const;
+};
+
+export const getGetMeQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMe>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMeQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMe>>> = ({
+    signal,
+  }) => getMe({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMe>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMeQueryResult = NonNullable<Awaited<ReturnType<typeof getMe>>>;
+export type GetMeQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get current user profile
+ */
+
+export function useGetMe<
+  TData = Awaited<ReturnType<typeof getMe>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMeQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Update user profile
  */
-export const updateMeBodyDailyGoalMinutesMin = 15;
-export const updateMeBodyDailyGoalMinutesMax = 720;
+export const getUpdateMeUrl = () => {
+  return `/api/me`;
+};
 
-export const UpdateMeBody = zod.object({
-  name: zod.string().optional(),
-  role: zod.string().optional(),
-  dailyGoalMinutes: zod
-    .number()
-    .min(updateMeBodyDailyGoalMinutesMin)
-    .max(updateMeBodyDailyGoalMinutesMax)
-    .optional(),
-  theme: zod.string().optional(),
-});
+export const updateMe = async (
+  updateUserBody: UpdateUserBody,
+  options?: RequestInit,
+): Promise<User> => {
+  return customFetch<User>(getUpdateMeUrl(), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateUserBody),
+  });
+};
 
-export const UpdateMeResponse = zod.object({
-  id: zod.number(),
-  name: zod.string(),
-  email: zod.string(),
-  avatarUrl: zod.string().nullish(),
-  role: zod.string().describe("school | college | exam | self"),
-  dailyGoalMinutes: zod.number(),
-  theme: zod.string().describe("light | dark | system"),
-  xp: zod.number(),
-  level: zod.number(),
-  createdAt: zod.coerce.date(),
-});
+export const getUpdateMeMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMe>>,
+    TError,
+    { data: BodyType<UpdateUserBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateMe>>,
+  TError,
+  { data: BodyType<UpdateUserBody> },
+  TContext
+> => {
+  const mutationKey = ["updateMe"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateMe>>,
+    { data: BodyType<UpdateUserBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateMe(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateMeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateMe>>
+>;
+export type UpdateMeMutationBody = BodyType<UpdateUserBody>;
+export type UpdateMeMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update user profile
+ */
+export const useUpdateMe = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMe>>,
+    TError,
+    { data: BodyType<UpdateUserBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateMe>>,
+  TError,
+  { data: BodyType<UpdateUserBody> },
+  TContext
+> => {
+  return useMutation(getUpdateMeMutationOptions(options));
+};
 
 /**
  * @summary List all tasks
  */
-export const ListTasksQueryParams = zod.object({
-  status: zod.enum(["pending", "in_progress", "completed"]).optional(),
-  subject: zod.coerce.string().optional(),
-});
+export const getListTasksUrl = (params?: ListTasksParams) => {
+  const normalizedParams = new URLSearchParams();
 
-export const ListTasksResponseItem = zod.object({
-  id: zod.number(),
-  title: zod.string(),
-  description: zod.string().nullish(),
-  subject: zod.string(),
-  priority: zod.string().describe("low | medium | high"),
-  status: zod.string().describe("pending | in_progress | completed"),
-  dueDate: zod.coerce.date().nullish(),
-  estimatedMinutes: zod.number().nullish(),
-  completedAt: zod.coerce.date().nullish(),
-  createdAt: zod.coerce.date(),
-});
-export const ListTasksResponse = zod.array(ListTasksResponseItem);
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/tasks?${stringifiedParams}`
+    : `/api/tasks`;
+};
+
+export const listTasks = async (
+  params?: ListTasksParams,
+  options?: RequestInit,
+): Promise<Task[]> => {
+  return customFetch<Task[]>(getListTasksUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListTasksQueryKey = (params?: ListTasksParams) => {
+  return [`/api/tasks`, ...(params ? [params] : [])] as const;
+};
+
+export const getListTasksQueryOptions = <
+  TData = Awaited<ReturnType<typeof listTasks>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListTasksParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listTasks>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListTasksQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listTasks>>> = ({
+    signal,
+  }) => listTasks(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listTasks>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListTasksQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listTasks>>
+>;
+export type ListTasksQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all tasks
+ */
+
+export function useListTasks<
+  TData = Awaited<ReturnType<typeof listTasks>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListTasksParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listTasks>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListTasksQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Create a task
  */
+export const getCreateTaskUrl = () => {
+  return `/api/tasks`;
+};
 
-export const CreateTaskBody = zod.object({
-  title: zod.string().min(1),
-  description: zod.string().optional(),
-  subject: zod.string(),
-  priority: zod.string(),
-  dueDate: zod.coerce.date().optional(),
-  estimatedMinutes: zod.number().optional(),
-});
+export const createTask = async (
+  createTaskBody: CreateTaskBody,
+  options?: RequestInit,
+): Promise<Task> => {
+  return customFetch<Task>(getCreateTaskUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createTaskBody),
+  });
+};
+
+export const getCreateTaskMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createTask>>,
+    TError,
+    { data: BodyType<CreateTaskBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createTask>>,
+  TError,
+  { data: BodyType<CreateTaskBody> },
+  TContext
+> => {
+  const mutationKey = ["createTask"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createTask>>,
+    { data: BodyType<CreateTaskBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createTask(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateTaskMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createTask>>
+>;
+export type CreateTaskMutationBody = BodyType<CreateTaskBody>;
+export type CreateTaskMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a task
+ */
+export const useCreateTask = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createTask>>,
+    TError,
+    { data: BodyType<CreateTaskBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createTask>>,
+  TError,
+  { data: BodyType<CreateTaskBody> },
+  TContext
+> => {
+  return useMutation(getCreateTaskMutationOptions(options));
+};
 
 /**
  * @summary Update a task
  */
-export const UpdateTaskParams = zod.object({
-  id: zod.coerce.number(),
-});
+export const getUpdateTaskUrl = (id: number) => {
+  return `/api/tasks/${id}`;
+};
 
-export const UpdateTaskBody = zod.object({
-  title: zod.string().optional(),
-  description: zod.string().optional(),
-  subject: zod.string().optional(),
-  priority: zod.string().optional(),
-  status: zod.string().optional(),
-  dueDate: zod.coerce.date().optional(),
-  estimatedMinutes: zod.number().optional(),
-});
+export const updateTask = async (
+  id: number,
+  updateTaskBody: UpdateTaskBody,
+  options?: RequestInit,
+): Promise<Task> => {
+  return customFetch<Task>(getUpdateTaskUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateTaskBody),
+  });
+};
 
-export const UpdateTaskResponse = zod.object({
-  id: zod.number(),
-  title: zod.string(),
-  description: zod.string().nullish(),
-  subject: zod.string(),
-  priority: zod.string().describe("low | medium | high"),
-  status: zod.string().describe("pending | in_progress | completed"),
-  dueDate: zod.coerce.date().nullish(),
-  estimatedMinutes: zod.number().nullish(),
-  completedAt: zod.coerce.date().nullish(),
-  createdAt: zod.coerce.date(),
-});
+export const getUpdateTaskMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateTask>>,
+    TError,
+    { id: number; data: BodyType<UpdateTaskBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateTask>>,
+  TError,
+  { id: number; data: BodyType<UpdateTaskBody> },
+  TContext
+> => {
+  const mutationKey = ["updateTask"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateTask>>,
+    { id: number; data: BodyType<UpdateTaskBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateTask(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateTaskMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateTask>>
+>;
+export type UpdateTaskMutationBody = BodyType<UpdateTaskBody>;
+export type UpdateTaskMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update a task
+ */
+export const useUpdateTask = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateTask>>,
+    TError,
+    { id: number; data: BodyType<UpdateTaskBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateTask>>,
+  TError,
+  { id: number; data: BodyType<UpdateTaskBody> },
+  TContext
+> => {
+  return useMutation(getUpdateTaskMutationOptions(options));
+};
 
 /**
  * @summary Delete a task
  */
-export const DeleteTaskParams = zod.object({
-  id: zod.coerce.number(),
-});
+export const getDeleteTaskUrl = (id: number) => {
+  return `/api/tasks/${id}`;
+};
+
+export const deleteTask = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteTaskUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteTaskMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTask>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteTask>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteTask"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteTask>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteTask(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteTaskMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteTask>>
+>;
+
+export type DeleteTaskMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a task
+ */
+export const useDeleteTask = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTask>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteTask>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteTaskMutationOptions(options));
+};
 
 /**
  * @summary List focus sessions
  */
-export const listSessionsQueryLimitDefault = 50;
+export const getListSessionsUrl = (params?: ListSessionsParams) => {
+  const normalizedParams = new URLSearchParams();
 
-export const ListSessionsQueryParams = zod.object({
-  limit: zod.coerce.number().default(listSessionsQueryLimitDefault),
-});
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
 
-export const ListSessionsResponseItem = zod.object({
-  id: zod.number(),
-  subject: zod.string(),
-  durationMinutes: zod.number(),
-  focusScore: zod.number().describe("0-100"),
-  sessionType: zod.string().describe("pomodoro | deep_work | short"),
-  distractions: zod.number(),
-  notes: zod.string().nullish(),
-  startedAt: zod.coerce.date(),
-  endedAt: zod.coerce.date(),
-});
-export const ListSessionsResponse = zod.array(ListSessionsResponseItem);
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/sessions?${stringifiedParams}`
+    : `/api/sessions`;
+};
+
+export const listSessions = async (
+  params?: ListSessionsParams,
+  options?: RequestInit,
+): Promise<FocusSession[]> => {
+  return customFetch<FocusSession[]>(getListSessionsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListSessionsQueryKey = (params?: ListSessionsParams) => {
+  return [`/api/sessions`, ...(params ? [params] : [])] as const;
+};
+
+export const getListSessionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listSessions>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListSessionsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listSessions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListSessionsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listSessions>>> = ({
+    signal,
+  }) => listSessions(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listSessions>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListSessionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listSessions>>
+>;
+export type ListSessionsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List focus sessions
+ */
+
+export function useListSessions<
+  TData = Awaited<ReturnType<typeof listSessions>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListSessionsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listSessions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListSessionsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Log a completed focus session
  */
+export const getCreateSessionUrl = () => {
+  return `/api/sessions`;
+};
 
-export const createSessionBodyFocusScoreMin = 0;
-export const createSessionBodyFocusScoreMax = 100;
+export const createSession = async (
+  createSessionBody: CreateSessionBody,
+  options?: RequestInit,
+): Promise<FocusSession> => {
+  return customFetch<FocusSession>(getCreateSessionUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createSessionBody),
+  });
+};
 
-export const createSessionBodyDistractionsMin = 0;
+export const getCreateSessionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSession>>,
+    TError,
+    { data: BodyType<CreateSessionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createSession>>,
+  TError,
+  { data: BodyType<CreateSessionBody> },
+  TContext
+> => {
+  const mutationKey = ["createSession"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
 
-export const CreateSessionBody = zod.object({
-  subject: zod.string(),
-  durationMinutes: zod.number().min(1),
-  focusScore: zod
-    .number()
-    .min(createSessionBodyFocusScoreMin)
-    .max(createSessionBodyFocusScoreMax),
-  sessionType: zod.string(),
-  distractions: zod.number().min(createSessionBodyDistractionsMin),
-  notes: zod.string().optional(),
-  startedAt: zod.coerce.date(),
-  endedAt: zod.coerce.date(),
-});
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createSession>>,
+    { data: BodyType<CreateSessionBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createSession(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createSession>>
+>;
+export type CreateSessionMutationBody = BodyType<CreateSessionBody>;
+export type CreateSessionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Log a completed focus session
+ */
+export const useCreateSession = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSession>>,
+    TError,
+    { data: BodyType<CreateSessionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createSession>>,
+  TError,
+  { data: BodyType<CreateSessionBody> },
+  TContext
+> => {
+  return useMutation(getCreateSessionMutationOptions(options));
+};
 
 /**
  * @summary List study goals
  */
-export const ListGoalsResponseItem = zod.object({
-  id: zod.number(),
-  title: zod.string(),
-  subject: zod.string(),
-  targetMinutes: zod.number(),
-  completedMinutes: zod.number(),
-  deadline: zod.coerce.date().nullish(),
-  status: zod.string(),
-  createdAt: zod.coerce.date(),
-});
-export const ListGoalsResponse = zod.array(ListGoalsResponseItem);
+export const getListGoalsUrl = () => {
+  return `/api/goals`;
+};
+
+export const listGoals = async (options?: RequestInit): Promise<Goal[]> => {
+  return customFetch<Goal[]>(getListGoalsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListGoalsQueryKey = () => {
+  return [`/api/goals`] as const;
+};
+
+export const getListGoalsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listGoals>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof listGoals>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListGoalsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listGoals>>> = ({
+    signal,
+  }) => listGoals({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listGoals>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListGoalsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listGoals>>
+>;
+export type ListGoalsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List study goals
+ */
+
+export function useListGoals<
+  TData = Awaited<ReturnType<typeof listGoals>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof listGoals>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListGoalsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Create a goal
  */
-export const createGoalBodyTargetMinutesMin = 15;
+export const getCreateGoalUrl = () => {
+  return `/api/goals`;
+};
 
-export const CreateGoalBody = zod.object({
-  title: zod.string(),
-  subject: zod.string(),
-  targetMinutes: zod.number().min(createGoalBodyTargetMinutesMin),
-  deadline: zod.coerce.date().optional(),
-});
+export const createGoal = async (
+  createGoalBody: CreateGoalBody,
+  options?: RequestInit,
+): Promise<Goal> => {
+  return customFetch<Goal>(getCreateGoalUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createGoalBody),
+  });
+};
+
+export const getCreateGoalMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createGoal>>,
+    TError,
+    { data: BodyType<CreateGoalBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createGoal>>,
+  TError,
+  { data: BodyType<CreateGoalBody> },
+  TContext
+> => {
+  const mutationKey = ["createGoal"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createGoal>>,
+    { data: BodyType<CreateGoalBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createGoal(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateGoalMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createGoal>>
+>;
+export type CreateGoalMutationBody = BodyType<CreateGoalBody>;
+export type CreateGoalMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a goal
+ */
+export const useCreateGoal = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createGoal>>,
+    TError,
+    { data: BodyType<CreateGoalBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createGoal>>,
+  TError,
+  { data: BodyType<CreateGoalBody> },
+  TContext
+> => {
+  return useMutation(getCreateGoalMutationOptions(options));
+};
 
 /**
  * @summary Update goal progress
  */
-export const UpdateGoalParams = zod.object({
-  id: zod.coerce.number(),
-});
+export const getUpdateGoalUrl = (id: number) => {
+  return `/api/goals/${id}`;
+};
 
-export const UpdateGoalBody = zod.object({
-  title: zod.string().optional(),
-  targetMinutes: zod.number().optional(),
-  completedMinutes: zod.number().optional(),
-  deadline: zod.coerce.date().optional(),
-  status: zod.string().optional(),
-});
+export const updateGoal = async (
+  id: number,
+  updateGoalBody: UpdateGoalBody,
+  options?: RequestInit,
+): Promise<Goal> => {
+  return customFetch<Goal>(getUpdateGoalUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateGoalBody),
+  });
+};
 
-export const UpdateGoalResponse = zod.object({
-  id: zod.number(),
-  title: zod.string(),
-  subject: zod.string(),
-  targetMinutes: zod.number(),
-  completedMinutes: zod.number(),
-  deadline: zod.coerce.date().nullish(),
-  status: zod.string(),
-  createdAt: zod.coerce.date(),
-});
+export const getUpdateGoalMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateGoal>>,
+    TError,
+    { id: number; data: BodyType<UpdateGoalBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateGoal>>,
+  TError,
+  { id: number; data: BodyType<UpdateGoalBody> },
+  TContext
+> => {
+  const mutationKey = ["updateGoal"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateGoal>>,
+    { id: number; data: BodyType<UpdateGoalBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateGoal(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateGoalMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateGoal>>
+>;
+export type UpdateGoalMutationBody = BodyType<UpdateGoalBody>;
+export type UpdateGoalMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update goal progress
+ */
+export const useUpdateGoal = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateGoal>>,
+    TError,
+    { id: number; data: BodyType<UpdateGoalBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateGoal>>,
+  TError,
+  { id: number; data: BodyType<UpdateGoalBody> },
+  TContext
+> => {
+  return useMutation(getUpdateGoalMutationOptions(options));
+};
 
 /**
  * @summary Delete a goal
  */
-export const DeleteGoalParams = zod.object({
-  id: zod.coerce.number(),
-});
+export const getDeleteGoalUrl = (id: number) => {
+  return `/api/goals/${id}`;
+};
+
+export const deleteGoal = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteGoalUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteGoalMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteGoal>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteGoal>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteGoal"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteGoal>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteGoal(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteGoalMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteGoal>>
+>;
+
+export type DeleteGoalMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a goal
+ */
+export const useDeleteGoal = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteGoal>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteGoal>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteGoalMutationOptions(options));
+};
 
 /**
  * @summary Get today's productivity summary
  */
-export const GetDashboardSummaryResponse = zod.object({
-  productivityScore: zod.number().describe("0-100 today"),
-  focusMinutesToday: zod.number(),
-  sessionsToday: zod.number(),
-  averageFocusScore: zod.number(),
-  tasksCompletedToday: zod.number(),
-  tasksPendingTotal: zod.number(),
-  dailyGoalMinutes: zod.number(),
-  goalProgressPct: zod.number(),
-  currentStreak: zod.number(),
-  xp: zod.number(),
-  level: zod.number(),
-  xpToNextLevel: zod.number(),
-});
+export const getGetDashboardSummaryUrl = () => {
+  return `/api/dashboard/summary`;
+};
+
+export const getDashboardSummary = async (
+  options?: RequestInit,
+): Promise<DashboardSummary> => {
+  return customFetch<DashboardSummary>(getGetDashboardSummaryUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDashboardSummaryQueryKey = () => {
+  return [`/api/dashboard/summary`] as const;
+};
+
+export const getGetDashboardSummaryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDashboardSummary>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDashboardSummary>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetDashboardSummaryQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getDashboardSummary>>
+  > = ({ signal }) => getDashboardSummary({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDashboardSummary>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDashboardSummaryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDashboardSummary>>
+>;
+export type GetDashboardSummaryQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get today's productivity summary
+ */
+
+export function useGetDashboardSummary<
+  TData = Awaited<ReturnType<typeof getDashboardSummary>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDashboardSummary>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDashboardSummaryQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Get last 7 days of focus minutes & productivity scores
  */
-export const GetWeeklyAnalyticsResponseItem = zod.object({
-  date: zod.string().describe("YYYY-MM-DD"),
-  focusMinutes: zod.number(),
-  productivityScore: zod.number(),
-  sessions: zod.number(),
-  tasksCompleted: zod.number(),
-});
-export const GetWeeklyAnalyticsResponse = zod.array(
-  GetWeeklyAnalyticsResponseItem,
-);
+export const getGetWeeklyAnalyticsUrl = () => {
+  return `/api/dashboard/weekly`;
+};
+
+export const getWeeklyAnalytics = async (
+  options?: RequestInit,
+): Promise<DailyStat[]> => {
+  return customFetch<DailyStat[]>(getGetWeeklyAnalyticsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetWeeklyAnalyticsQueryKey = () => {
+  return [`/api/dashboard/weekly`] as const;
+};
+
+export const getGetWeeklyAnalyticsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getWeeklyAnalytics>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWeeklyAnalytics>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetWeeklyAnalyticsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getWeeklyAnalytics>>
+  > = ({ signal }) => getWeeklyAnalytics({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getWeeklyAnalytics>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetWeeklyAnalyticsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getWeeklyAnalytics>>
+>;
+export type GetWeeklyAnalyticsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get last 7 days of focus minutes & productivity scores
+ */
+
+export function useGetWeeklyAnalytics<
+  TData = Awaited<ReturnType<typeof getWeeklyAnalytics>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWeeklyAnalytics>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetWeeklyAnalyticsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Get focus minutes by hour-of-day x day-of-week (last 28 days)
  */
-export const GetProductivityHeatmapResponseItem = zod.object({
-  dayOfWeek: zod.number().describe("0=Sun ... 6=Sat"),
-  hour: zod.number().describe("0-23"),
-  minutes: zod.number(),
-});
-export const GetProductivityHeatmapResponse = zod.array(
-  GetProductivityHeatmapResponseItem,
-);
+export const getGetProductivityHeatmapUrl = () => {
+  return `/api/dashboard/heatmap`;
+};
+
+export const getProductivityHeatmap = async (
+  options?: RequestInit,
+): Promise<HeatmapCell[]> => {
+  return customFetch<HeatmapCell[]>(getGetProductivityHeatmapUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetProductivityHeatmapQueryKey = () => {
+  return [`/api/dashboard/heatmap`] as const;
+};
+
+export const getGetProductivityHeatmapQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProductivityHeatmap>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getProductivityHeatmap>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetProductivityHeatmapQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProductivityHeatmap>>
+  > = ({ signal }) => getProductivityHeatmap({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProductivityHeatmap>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProductivityHeatmapQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProductivityHeatmap>>
+>;
+export type GetProductivityHeatmapQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get focus minutes by hour-of-day x day-of-week (last 28 days)
+ */
+
+export function useGetProductivityHeatmap<
+  TData = Awaited<ReturnType<typeof getProductivityHeatmap>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getProductivityHeatmap>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProductivityHeatmapQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Total minutes per subject (last 30 days)
  */
-export const GetSubjectBreakdownResponseItem = zod.object({
-  subject: zod.string(),
-  minutes: zod.number(),
-  sessions: zod.number(),
-  averageFocusScore: zod.number(),
-});
-export const GetSubjectBreakdownResponse = zod.array(
-  GetSubjectBreakdownResponseItem,
-);
+export const getGetSubjectBreakdownUrl = () => {
+  return `/api/dashboard/subjects`;
+};
+
+export const getSubjectBreakdown = async (
+  options?: RequestInit,
+): Promise<SubjectTotal[]> => {
+  return customFetch<SubjectTotal[]>(getGetSubjectBreakdownUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSubjectBreakdownQueryKey = () => {
+  return [`/api/dashboard/subjects`] as const;
+};
+
+export const getGetSubjectBreakdownQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSubjectBreakdown>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSubjectBreakdown>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSubjectBreakdownQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getSubjectBreakdown>>
+  > = ({ signal }) => getSubjectBreakdown({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSubjectBreakdown>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSubjectBreakdownQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSubjectBreakdown>>
+>;
+export type GetSubjectBreakdownQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Total minutes per subject (last 30 days)
+ */
+
+export function useGetSubjectBreakdown<
+  TData = Awaited<ReturnType<typeof getSubjectBreakdown>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSubjectBreakdown>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSubjectBreakdownQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Current and best study streaks
  */
-export const GetStreakResponse = zod.object({
-  currentStreak: zod.number(),
-  bestStreak: zod.number(),
-  lastActiveDate: zod.string().nullish(),
-});
+export const getGetStreakUrl = () => {
+  return `/api/dashboard/streak`;
+};
+
+export const getStreak = async (options?: RequestInit): Promise<StreakInfo> => {
+  return customFetch<StreakInfo>(getGetStreakUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetStreakQueryKey = () => {
+  return [`/api/dashboard/streak`] as const;
+};
+
+export const getGetStreakQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStreak>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getStreak>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetStreakQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getStreak>>> = ({
+    signal,
+  }) => getStreak({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getStreak>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetStreakQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStreak>>
+>;
+export type GetStreakQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Current and best study streaks
+ */
+
+export function useGetStreak<
+  TData = Awaited<ReturnType<typeof getStreak>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getStreak>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStreakQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary AI-generated insights and recommendations
  */
-export const GetAiInsightsResponse = zod.object({
-  bestStudyHour: zod
-    .number()
-    .nullish()
-    .describe("0-23, predicted best hour to study"),
-  bestStudyHourLabel: zod.string().nullish(),
-  burnoutRisk: zod.string().describe("low | medium | high"),
-  burnoutScore: zod.number().describe("0-100"),
-  motivationMessage: zod.string(),
-  weeklyTrend: zod.string().describe("up | down | flat"),
-  weeklyTrendPct: zod.number(),
-  insights: zod.array(
-    zod.object({
-      id: zod.string(),
-      type: zod.string().describe("tip | warning | praise | recommendation"),
-      title: zod.string(),
-      body: zod.string(),
-      priority: zod.number(),
-    }),
-  ),
-  recommendedBreakMinutes: zod.number(),
-  recommendedFocusBlockMinutes: zod.number(),
-});
+export const getGetAiInsightsUrl = () => {
+  return `/api/insights`;
+};
+
+export const getAiInsights = async (
+  options?: RequestInit,
+): Promise<AiInsights> => {
+  return customFetch<AiInsights>(getGetAiInsightsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAiInsightsQueryKey = () => {
+  return [`/api/insights`] as const;
+};
+
+export const getGetAiInsightsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAiInsights>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAiInsights>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAiInsightsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAiInsights>>> = ({
+    signal,
+  }) => getAiInsights({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAiInsights>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAiInsightsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAiInsights>>
+>;
+export type GetAiInsightsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary AI-generated insights and recommendations
+ */
+
+export function useGetAiInsights<
+  TData = Awaited<ReturnType<typeof getAiInsights>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAiInsights>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAiInsightsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Predicted productivity for next 7 days
  */
-export const GetWeeklyForecastResponseItem = zod.object({
-  date: zod.string(),
-  predictedFocusMinutes: zod.number(),
-  predictedProductivityScore: zod.number(),
-  confidence: zod.number().describe("0-100"),
-});
-export const GetWeeklyForecastResponse = zod.array(
-  GetWeeklyForecastResponseItem,
-);
+export const getGetWeeklyForecastUrl = () => {
+  return `/api/insights/forecast`;
+};
+
+export const getWeeklyForecast = async (
+  options?: RequestInit,
+): Promise<ForecastDay[]> => {
+  return customFetch<ForecastDay[]>(getGetWeeklyForecastUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetWeeklyForecastQueryKey = () => {
+  return [`/api/insights/forecast`] as const;
+};
+
+export const getGetWeeklyForecastQueryOptions = <
+  TData = Awaited<ReturnType<typeof getWeeklyForecast>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWeeklyForecast>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetWeeklyForecastQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getWeeklyForecast>>
+  > = ({ signal }) => getWeeklyForecast({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getWeeklyForecast>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetWeeklyForecastQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getWeeklyForecast>>
+>;
+export type GetWeeklyForecastQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Predicted productivity for next 7 days
+ */
+
+export function useGetWeeklyForecast<
+  TData = Awaited<ReturnType<typeof getWeeklyForecast>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWeeklyForecast>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetWeeklyForecastQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary All available achievements with unlocked status
  */
-export const ListAchievementsResponse = zod.object({
-  totalUnlocked: zod.number(),
-  totalAvailable: zod.number(),
-  totalXp: zod.number(),
-  items: zod.array(
-    zod.object({
-      id: zod.string(),
-      title: zod.string(),
-      description: zod.string(),
-      icon: zod.string(),
-      xpReward: zod.number(),
-      unlocked: zod.boolean(),
-      unlockedAt: zod.coerce.date().nullish(),
-      progress: zod.number().describe("0-100"),
-    }),
-  ),
-});
+export const getListAchievementsUrl = () => {
+  return `/api/achievements`;
+};
+
+export const listAchievements = async (
+  options?: RequestInit,
+): Promise<AchievementsResponse> => {
+  return customFetch<AchievementsResponse>(getListAchievementsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListAchievementsQueryKey = () => {
+  return [`/api/achievements`] as const;
+};
+
+export const getListAchievementsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listAchievements>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listAchievements>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListAchievementsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listAchievements>>
+  > = ({ signal }) => listAchievements({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listAchievements>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListAchievementsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAchievements>>
+>;
+export type ListAchievementsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary All available achievements with unlocked status
+ */
+
+export function useListAchievements<
+  TData = Awaited<ReturnType<typeof listAchievements>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listAchievements>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListAchievementsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}

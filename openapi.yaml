@@ -1,0 +1,811 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: FocusFlow AI - Productivity & Focus Management API for students
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: user
+    description: User profile operations
+  - name: tasks
+    description: Task management
+  - name: sessions
+    description: Focus sessions and study tracking
+  - name: goals
+    description: Study goals
+  - name: dashboard
+    description: Dashboard analytics and aggregates
+  - name: insights
+    description: AI insights and recommendations
+  - name: achievements
+    description: Achievements and gamification
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /me:
+    get:
+      operationId: getMe
+      tags: [user]
+      summary: Get current user profile
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    patch:
+      operationId: updateMe
+      tags: [user]
+      summary: Update user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserBody"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /tasks:
+    get:
+      operationId: listTasks
+      tags: [tasks]
+      summary: List all tasks
+      parameters:
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+            enum: [pending, in_progress, completed]
+        - in: query
+          name: subject
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create a task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskBody"
+      responses:
+        "201":
+          description: Created task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+
+  /tasks/{id}:
+    patch:
+      operationId: updateTask
+      tags: [tasks]
+      summary: Update a task
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskBody"
+      responses:
+        "200":
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+    delete:
+      operationId: deleteTask
+      tags: [tasks]
+      summary: Delete a task
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /sessions:
+    get:
+      operationId: listSessions
+      tags: [sessions]
+      summary: List focus sessions
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FocusSession"
+    post:
+      operationId: createSession
+      tags: [sessions]
+      summary: Log a completed focus session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSessionBody"
+      responses:
+        "201":
+          description: Created session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FocusSession"
+
+  /goals:
+    get:
+      operationId: listGoals
+      tags: [goals]
+      summary: List study goals
+      responses:
+        "200":
+          description: List of goals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Goal"
+    post:
+      operationId: createGoal
+      tags: [goals]
+      summary: Create a goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGoalBody"
+      responses:
+        "201":
+          description: Created goal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+
+  /goals/{id}:
+    patch:
+      operationId: updateGoal
+      tags: [goals]
+      summary: Update goal progress
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGoalBody"
+      responses:
+        "200":
+          description: Updated goal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+    delete:
+      operationId: deleteGoal
+      tags: [goals]
+      summary: Delete a goal
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get today's productivity summary
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/weekly:
+    get:
+      operationId: getWeeklyAnalytics
+      tags: [dashboard]
+      summary: Get last 7 days of focus minutes & productivity scores
+      responses:
+        "200":
+          description: Weekly stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DailyStat"
+
+  /dashboard/heatmap:
+    get:
+      operationId: getProductivityHeatmap
+      tags: [dashboard]
+      summary: Get focus minutes by hour-of-day x day-of-week (last 28 days)
+      responses:
+        "200":
+          description: Heatmap cells
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HeatmapCell"
+
+  /dashboard/subjects:
+    get:
+      operationId: getSubjectBreakdown
+      tags: [dashboard]
+      summary: Total minutes per subject (last 30 days)
+      responses:
+        "200":
+          description: Per-subject totals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SubjectTotal"
+
+  /dashboard/streak:
+    get:
+      operationId: getStreak
+      tags: [dashboard]
+      summary: Current and best study streaks
+      responses:
+        "200":
+          description: Streak info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StreakInfo"
+
+  /insights:
+    get:
+      operationId: getAiInsights
+      tags: [insights]
+      summary: AI-generated insights and recommendations
+      responses:
+        "200":
+          description: Insights
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiInsights"
+
+  /insights/forecast:
+    get:
+      operationId: getWeeklyForecast
+      tags: [insights]
+      summary: Predicted productivity for next 7 days
+      responses:
+        "200":
+          description: Forecast
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ForecastDay"
+
+  /achievements:
+    get:
+      operationId: listAchievements
+      tags: [achievements]
+      summary: All available achievements with unlocked status
+      responses:
+        "200":
+          description: Achievements
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AchievementsResponse"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        role:
+          type: string
+          description: school | college | exam | self
+        dailyGoalMinutes:
+          type: integer
+        theme:
+          type: string
+          description: light | dark | system
+        xp:
+          type: integer
+        level:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, email, role, dailyGoalMinutes, theme, xp, level, createdAt]
+
+    UpdateUserBody:
+      type: object
+      properties:
+        name:
+          type: string
+        role:
+          type: string
+        dailyGoalMinutes:
+          type: integer
+          minimum: 15
+          maximum: 720
+        theme:
+          type: string
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        subject:
+          type: string
+        priority:
+          type: string
+          description: low | medium | high
+        status:
+          type: string
+          description: pending | in_progress | completed
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+        estimatedMinutes:
+          type: integer
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, title, subject, priority, status, createdAt]
+
+    CreateTaskBody:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        subject:
+          type: string
+        priority:
+          type: string
+        dueDate:
+          type: string
+          format: date-time
+        estimatedMinutes:
+          type: integer
+      required: [title, subject, priority]
+
+    UpdateTaskBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        subject:
+          type: string
+        priority:
+          type: string
+        status:
+          type: string
+        dueDate:
+          type: string
+          format: date-time
+        estimatedMinutes:
+          type: integer
+
+    FocusSession:
+      type: object
+      properties:
+        id:
+          type: integer
+        subject:
+          type: string
+        durationMinutes:
+          type: integer
+        focusScore:
+          type: integer
+          description: 0-100
+        sessionType:
+          type: string
+          description: pomodoro | deep_work | short
+        distractions:
+          type: integer
+        notes:
+          type: string
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+      required: [id, subject, durationMinutes, focusScore, sessionType, distractions, startedAt, endedAt]
+
+    CreateSessionBody:
+      type: object
+      properties:
+        subject:
+          type: string
+        durationMinutes:
+          type: integer
+          minimum: 1
+        focusScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        sessionType:
+          type: string
+        distractions:
+          type: integer
+          minimum: 0
+        notes:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+      required: [subject, durationMinutes, focusScore, sessionType, distractions, startedAt, endedAt]
+
+    Goal:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        subject:
+          type: string
+        targetMinutes:
+          type: integer
+        completedMinutes:
+          type: integer
+        deadline:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, title, subject, targetMinutes, completedMinutes, status, createdAt]
+
+    CreateGoalBody:
+      type: object
+      properties:
+        title:
+          type: string
+        subject:
+          type: string
+        targetMinutes:
+          type: integer
+          minimum: 15
+        deadline:
+          type: string
+          format: date-time
+      required: [title, subject, targetMinutes]
+
+    UpdateGoalBody:
+      type: object
+      properties:
+        title:
+          type: string
+        targetMinutes:
+          type: integer
+        completedMinutes:
+          type: integer
+        deadline:
+          type: string
+          format: date-time
+        status:
+          type: string
+
+    DashboardSummary:
+      type: object
+      properties:
+        productivityScore:
+          type: integer
+          description: 0-100 today
+        focusMinutesToday:
+          type: integer
+        sessionsToday:
+          type: integer
+        averageFocusScore:
+          type: integer
+        tasksCompletedToday:
+          type: integer
+        tasksPendingTotal:
+          type: integer
+        dailyGoalMinutes:
+          type: integer
+        goalProgressPct:
+          type: integer
+        currentStreak:
+          type: integer
+        xp:
+          type: integer
+        level:
+          type: integer
+        xpToNextLevel:
+          type: integer
+      required:
+        - productivityScore
+        - focusMinutesToday
+        - sessionsToday
+        - averageFocusScore
+        - tasksCompletedToday
+        - tasksPendingTotal
+        - dailyGoalMinutes
+        - goalProgressPct
+        - currentStreak
+        - xp
+        - level
+        - xpToNextLevel
+
+    DailyStat:
+      type: object
+      properties:
+        date:
+          type: string
+          description: YYYY-MM-DD
+        focusMinutes:
+          type: integer
+        productivityScore:
+          type: integer
+        sessions:
+          type: integer
+        tasksCompleted:
+          type: integer
+      required: [date, focusMinutes, productivityScore, sessions, tasksCompleted]
+
+    HeatmapCell:
+      type: object
+      properties:
+        dayOfWeek:
+          type: integer
+          description: 0=Sun ... 6=Sat
+        hour:
+          type: integer
+          description: 0-23
+        minutes:
+          type: integer
+      required: [dayOfWeek, hour, minutes]
+
+    SubjectTotal:
+      type: object
+      properties:
+        subject:
+          type: string
+        minutes:
+          type: integer
+        sessions:
+          type: integer
+        averageFocusScore:
+          type: integer
+      required: [subject, minutes, sessions, averageFocusScore]
+
+    StreakInfo:
+      type: object
+      properties:
+        currentStreak:
+          type: integer
+        bestStreak:
+          type: integer
+        lastActiveDate:
+          type: string
+          nullable: true
+      required: [currentStreak, bestStreak]
+
+    AiInsight:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          description: tip | warning | praise | recommendation
+        title:
+          type: string
+        body:
+          type: string
+        priority:
+          type: integer
+      required: [id, type, title, body, priority]
+
+    AiInsights:
+      type: object
+      properties:
+        bestStudyHour:
+          type: integer
+          nullable: true
+          description: 0-23, predicted best hour to study
+        bestStudyHourLabel:
+          type: string
+          nullable: true
+        burnoutRisk:
+          type: string
+          description: low | medium | high
+        burnoutScore:
+          type: integer
+          description: 0-100
+        motivationMessage:
+          type: string
+        weeklyTrend:
+          type: string
+          description: up | down | flat
+        weeklyTrendPct:
+          type: integer
+        insights:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiInsight"
+        recommendedBreakMinutes:
+          type: integer
+        recommendedFocusBlockMinutes:
+          type: integer
+      required:
+        - burnoutRisk
+        - burnoutScore
+        - motivationMessage
+        - weeklyTrend
+        - weeklyTrendPct
+        - insights
+        - recommendedBreakMinutes
+        - recommendedFocusBlockMinutes
+
+    ForecastDay:
+      type: object
+      properties:
+        date:
+          type: string
+        predictedFocusMinutes:
+          type: integer
+        predictedProductivityScore:
+          type: integer
+        confidence:
+          type: integer
+          description: 0-100
+      required: [date, predictedFocusMinutes, predictedProductivityScore, confidence]
+
+    Achievement:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+        xpReward:
+          type: integer
+        unlocked:
+          type: boolean
+        unlockedAt:
+          type: string
+          format: date-time
+          nullable: true
+        progress:
+          type: integer
+          description: 0-100
+      required: [id, title, description, icon, xpReward, unlocked, progress]
+
+    AchievementsResponse:
+      type: object
+      properties:
+        totalUnlocked:
+          type: integer
+        totalAvailable:
+          type: integer
+        totalXp:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Achievement"
+      required: [totalUnlocked, totalAvailable, totalXp, items]
